@@ -1,0 +1,45 @@
+name: Sync Amazon SP-API models
+
+on:
+  schedule:
+    - cron: "17 19 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run registry:sync
+      - run: npm run check
+      - name: Open update pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- registry/operations.json; then
+            echo "Registry is current."
+            exit 0
+          fi
+          source_commit=$(node -p "require('./registry/operations.json').source.commit")
+          short_commit=${source_commit:0:12}
+          branch="automation/sp-api-models-${short_commit}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add registry/operations.json
+          git commit -m "Sync Amazon SP-API models ${short_commit}"
+          git push --set-upstream origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "Sync Amazon SP-API models ${short_commit}" \
+            --body "Updates the generated operation registry from the authoritative Amazon model commit \`${source_commit}\`.\n\nValidation: \`npm run check\`."

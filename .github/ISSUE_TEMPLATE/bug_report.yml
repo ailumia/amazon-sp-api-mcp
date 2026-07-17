@@ -1,0 +1,57 @@
+name: Bug report
+description: Report reproducible incorrect behavior in the MCP server
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include Amazon credentials, access tokens, seller PII, or report data. Report security issues privately through the Security tab.
+  - type: checkboxes
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+        - label: I removed credentials and seller data from all logs and examples.
+          required: true
+  - type: input
+    attributes:
+      label: Version or commit
+      placeholder: v1.0.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Transport
+      options: [stdio, Streamable HTTP, both, not applicable]
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Node.js version
+      placeholder: v22.14.0
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: Provide the smallest safe sequence of tool calls or commands that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual behavior and sanitized logs
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Operation ID and Amazon request ID
+      description: Include these when relevant, but no credentials or payload data.

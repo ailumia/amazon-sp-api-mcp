@@ -1,0 +1,79 @@
+{
+  "name": "@ailumia/amazon-sp-api-mcp",
+  "version": "1.0.0",
+  "description": "Production-grade, version-aware Model Context Protocol server for Amazon Selling Partner API",
+  "type": "module",
+  "bin": {
+    "amazon-sp-api-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "registry",
+    "docs",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run registry:check",
+    "registry:sync": "tsx scripts/sync-models.ts",
+    "registry:generate": "tsx scripts/generate-registry.ts",
+    "registry:check": "tsx scripts/check-registry.ts",
+    "prepack": "npm run check"
+  },
+  "keywords": [
+    "amazon",
+    "sp-api",
+    "selling-partner-api",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "author": "Ailumia <opensource@ailumia.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ailumia/amazon-sp-api-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ailumia/amazon-sp-api-mcp/issues"
+  },
+  "homepage": "https://github.com/ailumia/amazon-sp-api-mcp#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "pino": "^10.3.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.39.1",
+    "prettier": "^3.7.4",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.48.1",
+    "vitest": "^4.1.10"
+  }
+}

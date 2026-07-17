@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/ailumia/amazon-sp-api-mcp/discussions
+    about: Ask usage questions or discuss ideas before proposing a large change.
+  - name: Security vulnerability
+    url: https://github.com/ailumia/amazon-sp-api-mcp/security/advisories/new
+    about: Report vulnerabilities privately. Never disclose credentials or seller data publicly.
+  - name: Amazon SP-API support
+    url: https://developer-docs.amazon.com/sp-api/
+    about: Use Amazon's official support channels for Amazon platform and account issues.
