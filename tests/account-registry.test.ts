@@ -28,7 +28,6 @@ describe("AccountRegistry", () => {
       [
         {
           accountName: "hexai-na",
-          sellerId: "SELLER",
           region: "na",
           endpoint: "https://na.example.test",
           tokenProvider,
@@ -40,7 +39,6 @@ describe("AccountRegistry", () => {
     const summaries = await registry.listAccounts();
     expect(summaries[0]).toMatchObject({
       accountName: "hexai-na",
-      sellerId: "SELLER",
       isDefault: true,
       region: "na",
       metadataStatus: "ready",
@@ -59,9 +57,6 @@ describe("AccountRegistry", () => {
     await expect(
       registry.validateRequest(registry.resolve(), { query: { marketplaceId: "CA" } }),
     ).rejects.toMatchObject({ code: "ACCOUNT_MARKETPLACE_MISMATCH" });
-    await expect(
-      registry.validateRequest(registry.resolve(), { path: { sellerId: "OTHER" } }),
-    ).rejects.toMatchObject({ code: "ACCOUNT_SELLER_MISMATCH" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(tokenProvider.getAccessToken).toHaveBeenCalledTimes(1);
   });

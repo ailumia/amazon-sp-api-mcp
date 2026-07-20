@@ -21,7 +21,7 @@ Confirmation proves explicit caller intent; it is not an authorization system. A
 
 When multiple accounts are configured, every live call must specify `accountName`. A single account can omit it. There is no mutable "current account" state, so concurrent requests cannot switch each other's account context.
 
-Marketplace metadata is loaded from `getMarketplaceParticipations`. Marketplace-scoped calls are rejected unless every requested marketplace is active for the selected account. When a configured seller ID and request seller ID differ, the call is also rejected. Store names returned by Amazon are display metadata and never routing identifiers.
+Marketplace metadata is loaded from `getMarketplaceParticipations`. Marketplace-scoped calls are rejected unless every requested marketplace is active for the selected account. Seller IDs required by individual operations remain normal validated operation arguments. Store names returned by Amazon are display metadata and never routing identifiers.
 
 ## Input and output controls
 

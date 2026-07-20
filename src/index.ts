@@ -24,14 +24,12 @@ const userAgent = "ailumia-amazon-sp-api-mcp/1.0.0";
 const accountRegistry = new AccountRegistry(
   config.accounts.map((account) => ({
     accountName: account.accountName,
-    ...(account.sellerId === undefined ? {} : { sellerId: account.sellerId }),
     region: account.region,
     endpoint: account.endpoint,
     tokenProvider: new LwaTokenProvider({
-      ...(account.clientId === undefined ? {} : { clientId: account.clientId }),
-      ...(account.clientSecret === undefined ? {} : { clientSecret: account.clientSecret }),
-      ...(account.refreshToken === undefined ? {} : { refreshToken: account.refreshToken }),
-      ...(account.accessToken === undefined ? {} : { accessToken: account.accessToken }),
+      clientId: account.clientId,
+      clientSecret: account.clientSecret,
+      refreshToken: account.refreshToken,
     }),
   })),
   logger,

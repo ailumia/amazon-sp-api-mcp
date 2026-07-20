@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- Simplified each `SP_API_ACCOUNTS` entry to `ACCOUNT_NAME`, `SP_API_CLIENT_ID`, `SP_API_CLIENT_SECRET`, `SP_API_REFRESH_TOKEN`, and `SP_API_REGION`; seller IDs remain operation arguments where required.
+
 ## [1.0.0] - 2026-07-20
 
 ### Added

@@ -57,7 +57,7 @@ MCP client
       → create the audit context
       → enforce write/delete confirmation
       → validate path/query/header/body with JSON Schema
-      → validate seller ID and enabled marketplaces
+      → validate operation arguments and enabled marketplaces
       → resolve the regional endpoint
       → obtain or refresh that account's LWA access token
       → serialize the HTTP request
@@ -75,7 +75,7 @@ The model cannot provide an Amazon access token through tool arguments. It can s
 
 ### `list_accounts`
 
-Returns safe account names, configured seller IDs, regions, metadata status, and marketplace participations. It never returns credential material. Marketplace metadata is warmed in the background at startup and shared with request validation.
+Returns safe account names, regions, metadata status, and marketplace participations. It never returns credential material. Marketplace metadata is warmed in the background at startup and shared with request validation.
 
 ### `discover_operations`
 
@@ -89,7 +89,7 @@ Returns one full operation plus its generated input schema. Clients should call 
 
 Executes one registry operation. It is intentionally generic; validation and safety policy remain operation-aware.
 
-The request policy rejects account/marketplace and configured seller-ID mismatches before the target operation is sent. `dryRun=true` validates and returns the prepared method, URL, and submitted body without sending the target operation.
+The request policy rejects account/marketplace mismatches before the target operation is sent. `dryRun=true` validates and returns the prepared method, URL, and submitted body without sending the target operation.
 
 ### `get_artifact`
 
@@ -109,7 +109,7 @@ Protocol failures and application failures remain distinct: malformed MCP reques
 
 The executor retains a global concurrency ceiling for local resource control and separately maintains token buckets keyed by account name, region, and version-aware operation ID. Static usage plans are read from generated Amazon model descriptions when available, response rate-limit headers update buckets dynamically, and 429 responses apply `Retry-After` to only the affected bucket.
 
-Every attempted, rejected, failed, successful, or dry-run operation with a resolved account emits a JSON audit event to stderr. Events include a generated audit ID, stable account name, seller ID when configured, marketplace IDs, operation, method, access classification, resource identifiers, confirmation and dry-run state, attempts, status, Amazon request ID when available, and a payload hash for writes. Results and structured errors expose the audit ID for correlation. Raw bodies and credentials are excluded.
+Every attempted, rejected, failed, successful, or dry-run operation with a resolved account emits a JSON audit event to stderr. Events include a generated audit ID, stable account name, marketplace IDs, operation, method, access classification, resource identifiers such as seller ID and SKU when present, confirmation and dry-run state, attempts, status, Amazon request ID when available, and a payload hash for writes. Results and structured errors expose the audit ID for correlation. Raw bodies and credentials are excluded.
 
 ## Extension rules
 
