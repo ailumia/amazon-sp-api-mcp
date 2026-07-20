@@ -6,19 +6,18 @@ describe("loadConfig", () => {
     const config = loadConfig({
       SP_API_ACCOUNTS: JSON.stringify([
         {
-          accountName: "hexai-na",
-          sellerId: "SELLER-NA",
-          clientId: "na-id",
-          clientSecret: "na-secret",
-          refreshToken: "na-refresh",
-          region: "na",
+          ACCOUNT_NAME: "hexai-na",
+          SP_API_CLIENT_ID: "na-id",
+          SP_API_CLIENT_SECRET: "na-secret",
+          SP_API_REFRESH_TOKEN: "na-refresh",
+          SP_API_REGION: "na",
         },
         {
-          accountName: "hexai-eu",
-          clientId: "eu-id",
-          clientSecret: "eu-secret",
-          refreshToken: "eu-refresh",
-          region: "eu",
+          ACCOUNT_NAME: "hexai-eu",
+          SP_API_CLIENT_ID: "eu-id",
+          SP_API_CLIENT_SECRET: "eu-secret",
+          SP_API_REFRESH_TOKEN: "eu-refresh",
+          SP_API_REGION: "eu",
         },
       ]),
     });
@@ -26,7 +25,6 @@ describe("loadConfig", () => {
     expect(config.accounts).toEqual([
       {
         accountName: "hexai-na",
-        sellerId: "SELLER-NA",
         clientId: "na-id",
         clientSecret: "na-secret",
         refreshToken: "na-refresh",
@@ -44,19 +42,25 @@ describe("loadConfig", () => {
     ]);
   });
 
-  it("supports static access tokens, region defaults, and endpoint overrides", () => {
+  it("assigns single-account and region defaults", () => {
     const config = loadConfig({
       SP_API_ACCOUNTS: JSON.stringify([
-        { accessToken: "temporary", endpoint: "https://proxy.example.test/" },
+        {
+          SP_API_CLIENT_ID: "id",
+          SP_API_CLIENT_SECRET: "secret",
+          SP_API_REFRESH_TOKEN: "refresh",
+        },
       ]),
     });
 
     expect(config.accounts).toEqual([
       {
         accountName: "default",
-        accessToken: "temporary",
+        clientId: "id",
+        clientSecret: "secret",
+        refreshToken: "refresh",
         region: "na",
-        endpoint: "https://proxy.example.test",
+        endpoint: "https://sellingpartnerapi-na.amazon.com",
       },
     ]);
   });
@@ -87,33 +91,51 @@ describe("loadConfig", () => {
       "SP_API_ACCOUNTS must contain one or more valid account objects",
     );
     expect(() =>
-      loadConfig({ SP_API_ACCOUNTS: JSON.stringify([{ refreshToken: "refresh" }]) }),
+      loadConfig({ SP_API_ACCOUNTS: JSON.stringify([{ SP_API_REFRESH_TOKEN: "refresh" }]) }),
+    ).toThrow("SP_API_ACCOUNTS must contain one or more valid account objects");
+    expect(() =>
+      loadConfig({
+        SP_API_ACCOUNTS: JSON.stringify([
+          { clientId: "legacy", clientSecret: "legacy", refreshToken: "legacy" },
+        ]),
+      }),
     ).toThrow("SP_API_ACCOUNTS must contain one or more valid account objects");
   });
 
   it("requires unique stable account names only for multi-account configurations", () => {
-    const credential = { accessToken: "token" };
+    const credential = {
+      SP_API_CLIENT_ID: "id",
+      SP_API_CLIENT_SECRET: "secret",
+      SP_API_REFRESH_TOKEN: "refresh",
+    };
     expect(() => loadConfig({ SP_API_ACCOUNTS: JSON.stringify([credential, credential]) })).toThrow(
       "SP_API_ACCOUNTS must contain one or more valid account objects",
     );
     expect(() =>
       loadConfig({
         SP_API_ACCOUNTS: JSON.stringify([
-          { ...credential, accountName: "same" },
-          { ...credential, accountName: "same" },
+          { ...credential, ACCOUNT_NAME: "same" },
+          { ...credential, ACCOUNT_NAME: "same" },
         ]),
       }),
     ).toThrow("SP_API_ACCOUNTS must contain one or more valid account objects");
     expect(() =>
       loadConfig({
-        SP_API_ACCOUNTS: JSON.stringify([{ ...credential, accountName: "Not Stable" }]),
+        SP_API_ACCOUNTS: JSON.stringify([{ ...credential, ACCOUNT_NAME: "Not Stable" }]),
       }),
     ).toThrow("SP_API_ACCOUNTS must contain one or more valid account objects");
   });
 
   it("rejects invalid regions and weak HTTP bearer tokens", () => {
+    const credential = {
+      SP_API_CLIENT_ID: "id",
+      SP_API_CLIENT_SECRET: "secret",
+      SP_API_REFRESH_TOKEN: "refresh",
+    };
     expect(() =>
-      loadConfig({ SP_API_ACCOUNTS: JSON.stringify([{ accessToken: "token", region: "us" }]) }),
+      loadConfig({
+        SP_API_ACCOUNTS: JSON.stringify([{ ...credential, SP_API_REGION: "us" }]),
+      }),
     ).toThrow("SP_API_ACCOUNTS must contain one or more valid account objects");
     expect(() => loadConfig({ MCP_BEARER_TOKEN: "short" })).toThrow();
   });

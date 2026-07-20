@@ -32,7 +32,6 @@ export interface InvocationOptions {
 interface AuditContext {
   auditId: string;
   accountName: string;
-  sellerId?: string;
   marketplaceIds: string[];
   operationId: string;
   method: string;
@@ -305,7 +304,6 @@ function auditContext(
   return {
     auditId: randomUUID(),
     accountName: account.accountName,
-    ...(account.sellerId === undefined ? {} : { sellerId: account.sellerId }),
     marketplaceIds,
     operationId: operation.id,
     method: operation.method,

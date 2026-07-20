@@ -195,7 +195,6 @@ describe("SpApiExecutor", () => {
     const executor = await createExecutor([target], fetchMock, 1024 * 1024, [
       {
         accountName: "hexai-na",
-        sellerId: "SELLER",
         region: "na",
         endpoint: "https://na.example.test",
         tokenProvider: { getAccessToken: () => Promise.resolve("token") },

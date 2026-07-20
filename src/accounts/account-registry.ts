@@ -7,7 +7,6 @@ export type SpApiRegion = "na" | "eu" | "fe";
 
 export interface RuntimeAccount {
   accountName: string;
-  sellerId?: string;
   region: SpApiRegion;
   endpoint: string;
   tokenProvider: AccessTokenProvider;
@@ -25,7 +24,6 @@ export interface MarketplaceMetadata {
 export interface AccountSummary {
   accountName: string;
   isDefault: boolean;
-  sellerId?: string;
   region: SpApiRegion;
   metadataStatus: "ready" | "error";
   marketplaces: MarketplaceMetadata[];
@@ -107,7 +105,6 @@ export class AccountRegistry {
     return this.#accounts.map((account, index) => ({
       accountName: account.accountName,
       isDefault: this.#accounts.length === 1 && index === 0,
-      ...(account.sellerId === undefined ? {} : { sellerId: account.sellerId }),
       region: account.region,
       metadataStatus: account.metadataStatus === "ready" ? "ready" : "error",
       marketplaces: account.marketplaces,
@@ -119,19 +116,6 @@ export class AccountRegistry {
     account: RegisteredAccount,
     arguments_: InvocationArguments,
   ): Promise<string[]> {
-    const suppliedSellerId = scalarNamed(arguments_.path, "sellerId");
-    if (
-      account.sellerId !== undefined &&
-      suppliedSellerId !== undefined &&
-      suppliedSellerId !== account.sellerId
-    ) {
-      throw new SpApiMcpError(
-        `sellerId does not match accountName=${account.accountName}`,
-        "ACCOUNT_SELLER_MISMATCH",
-        { accountName: account.accountName, sellerId: suppliedSellerId },
-      );
-    }
-
     const marketplaceIds = marketplaceIdsFromArguments(arguments_);
     if (marketplaceIds.length === 0) return marketplaceIds;
     await this.ensureMarketplaceMetadata(account);
@@ -243,15 +227,6 @@ function collectNamedValues(
     }
     collectNamedValues(child, pattern, output);
   }
-}
-
-function scalarNamed(
-  value: Record<string, JsonValue> | undefined,
-  name: string,
-): string | undefined {
-  if (value === undefined) return undefined;
-  const match = Object.entries(value).find(([key]) => key.toLowerCase() === name.toLowerCase());
-  return typeof match?.[1] === "string" ? match[1] : undefined;
 }
 
 function parseParticipations(value: unknown): MarketplaceMetadata[] {

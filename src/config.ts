@@ -22,68 +22,51 @@ const envSchema = z.object({
 
 const accountInputSchema = z
   .object({
-    accountName: z
+    ACCOUNT_NAME: z
       .string()
       .regex(/^[a-z0-9][a-z0-9_-]{0,63}$/u)
       .optional(),
-    sellerId: z.string().min(1).optional(),
-    clientId: z.string().min(1).optional(),
-    clientSecret: z.string().min(1).optional(),
-    refreshToken: z.string().min(1).optional(),
-    accessToken: z.string().min(1).optional(),
-    region: z.enum(["na", "eu", "fe"]).default("na"),
-    endpoint: z.url().optional(),
+    SP_API_CLIENT_ID: z.string().min(1),
+    SP_API_CLIENT_SECRET: z.string().min(1),
+    SP_API_REFRESH_TOKEN: z.string().min(1),
+    SP_API_REGION: z.enum(["na", "eu", "fe"]).default("na"),
   })
-  .strict()
-  .superRefine((account, context) => {
-    if (account.accessToken !== undefined) return;
-    for (const field of ["clientId", "clientSecret", "refreshToken"] as const) {
-      if (account[field] === undefined) {
-        context.addIssue({
-          code: "custom",
-          path: [field],
-          message: `${field} is required when accessToken is not configured`,
-        });
-      }
-    }
-  });
+  .strict();
 const accountsInputSchema = z
   .array(accountInputSchema)
   .min(1)
   .superRefine((accounts, context) => {
     if (accounts.length > 1) {
       for (const [index, account] of accounts.entries()) {
-        if (account.accountName === undefined) {
+        if (account.ACCOUNT_NAME === undefined) {
           context.addIssue({
             code: "custom",
-            path: [index, "accountName"],
-            message: "accountName is required when multiple accounts are configured",
+            path: [index, "ACCOUNT_NAME"],
+            message: "ACCOUNT_NAME is required when multiple accounts are configured",
           });
         }
       }
     }
     const names = new Set<string>();
     for (const [index, account] of accounts.entries()) {
-      if (account.accountName === undefined) continue;
-      if (names.has(account.accountName)) {
+      if (account.ACCOUNT_NAME === undefined) continue;
+      if (names.has(account.ACCOUNT_NAME)) {
         context.addIssue({
           code: "custom",
-          path: [index, "accountName"],
-          message: "accountName must be unique",
+          path: [index, "ACCOUNT_NAME"],
+          message: "ACCOUNT_NAME must be unique",
         });
       }
-      names.add(account.accountName);
+      names.add(account.ACCOUNT_NAME);
     }
   });
 type AccountInput = z.infer<typeof accountInputSchema>;
 
 export interface SpApiAccountConfig {
   accountName: string;
-  sellerId?: string;
-  clientId?: string;
-  clientSecret?: string;
-  refreshToken?: string;
-  accessToken?: string;
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
   region: "na" | "eu" | "fe";
   endpoint: string;
 }
@@ -148,13 +131,11 @@ function parseAccounts(value: string | undefined): SpApiAccountConfig[] {
 
 function resolveAccount(account: AccountInput): SpApiAccountConfig {
   return {
-    accountName: account.accountName ?? "default",
-    ...(account.sellerId === undefined ? {} : { sellerId: account.sellerId }),
-    ...(account.clientId === undefined ? {} : { clientId: account.clientId }),
-    ...(account.clientSecret === undefined ? {} : { clientSecret: account.clientSecret }),
-    ...(account.refreshToken === undefined ? {} : { refreshToken: account.refreshToken }),
-    ...(account.accessToken === undefined ? {} : { accessToken: account.accessToken }),
-    region: account.region,
-    endpoint: (account.endpoint ?? REGION_ENDPOINTS[account.region]).replace(/\/$/, ""),
+    accountName: account.ACCOUNT_NAME ?? "default",
+    clientId: account.SP_API_CLIENT_ID,
+    clientSecret: account.SP_API_CLIENT_SECRET,
+    refreshToken: account.SP_API_REFRESH_TOKEN,
+    region: account.SP_API_REGION,
+    endpoint: REGION_ENDPOINTS[account.SP_API_REGION],
   };
 }

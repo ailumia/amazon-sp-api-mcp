@@ -19,7 +19,7 @@ The server exposes a small six-tool MCP surface backed by a generated registry o
 - **Small MCP surface** — safe account listing, discovery, description, invocation, artifact retrieval, and a complete Reports workflow.
 - **Safe by default** — remote writes and deletes require explicit confirmation; credentials are injected server-side and never accepted as tool arguments.
 - **Multiple seller accounts** — configure stable account names; credentials remain server-side and multi-account calls must select an account explicitly.
-- **Marketplace safety** — account metadata is loaded from Amazon and account, seller, marketplace, and regional endpoint combinations are validated before execution.
+- **Marketplace safety** — account metadata is loaded from Amazon and account, marketplace, and regional endpoint combinations are validated before execution.
 - **Production controls** — per-account operation rate limiting, bounded concurrency, retries, dry runs, audit events, response size limits, structured errors, and request IDs.
 - **Large result handling** — oversized and binary responses become integrity-checked local artifacts that can be read in bounded chunks.
 - **Two transports** — stdio for local clients and stateless Streamable HTTP for controlled deployments.
@@ -58,57 +58,53 @@ The package is also prepared for public npm publication as `@ailumia/amazon-sp-a
 
 ## Configure credentials
 
-Set `SP_API_ACCOUNTS` to a JSON array. Credentials stay in the MCP server environment and are never accepted through tool arguments. `accountName` is a stable routing key, not an Amazon store name.
+Set `SP_API_ACCOUNTS` to a JSON array. Credentials stay in the MCP server environment and are never accepted through tool arguments. `ACCOUNT_NAME` is a stable routing key, not an Amazon store name. It is exposed as `accountName` in MCP tool arguments and responses.
 
 Account fields:
 
-| Field          | Required                              | Description                                                                        |
-| -------------- | ------------------------------------- | ---------------------------------------------------------------------------------- |
-| `accountName`  | When two or more accounts exist       | Stable lowercase name: letters, numbers, `_`, or `-`; maximum 64 characters.       |
-| `sellerId`     | No, but recommended for Listings      | Amazon Seller/Merchant ID. When set, matching `sellerId` path values are enforced. |
-| `clientId`     | With refresh-token authentication     | LWA application client ID.                                                         |
-| `clientSecret` | With refresh-token authentication     | LWA application client secret.                                                     |
-| `refreshToken` | With refresh-token authentication     | Seller authorization refresh token.                                                |
-| `accessToken`  | Alternative to the three fields above | Short-lived static LWA access token.                                               |
-| `region`       | No                                    | `na` by default; also supports `eu` and `fe`.                                      |
-| `endpoint`     | No                                    | Custom regional endpoint override.                                                 |
+| Field                  | Required                        | Description                                                                  |
+| ---------------------- | ------------------------------- | ---------------------------------------------------------------------------- |
+| `ACCOUNT_NAME`         | When two or more accounts exist | Stable lowercase name: letters, numbers, `_`, or `-`; maximum 64 characters. |
+| `SP_API_CLIENT_ID`     | Yes                             | LWA application client ID.                                                   |
+| `SP_API_CLIENT_SECRET` | Yes                             | LWA application client secret.                                               |
+| `SP_API_REFRESH_TOKEN` | Yes                             | Seller authorization refresh token.                                          |
+| `SP_API_REGION`        | No                              | `na` by default; also supports `eu` and `fe`.                                |
 
 ### Single account
 
-Use an array with one account. `accountName` can be omitted; the server assigns the internal name `default`:
+Use an array with one account. `ACCOUNT_NAME` can be omitted; the server assigns the internal name `default`. This explicit example uses all five supported account fields:
 
 ```bash
 export SP_API_ACCOUNTS='[
   {
-    "clientId": "amzn1.application-oa2-client...",
-    "clientSecret": "...",
-    "refreshToken": "...",
-    "region": "na"
+    "ACCOUNT_NAME": "primary",
+    "SP_API_CLIENT_ID": "amzn1.application-oa2-client...",
+    "SP_API_CLIENT_SECRET": "...",
+    "SP_API_REFRESH_TOKEN": "...",
+    "SP_API_REGION": "na"
   }
 ]'
 ```
 
 ### Multiple accounts
 
-Every account must have a unique `accountName` when more than one account is configured:
+Every account must have a unique `ACCOUNT_NAME` when more than one account is configured:
 
 ```bash
 export SP_API_ACCOUNTS='[
   {
-    "accountName": "hexai-na",
-    "sellerId": "AMAZON_SELLER_ID_NA",
-    "clientId": "amzn1.application-oa2-client...",
-    "clientSecret": "...",
-    "refreshToken": "...",
-    "region": "na"
+    "ACCOUNT_NAME": "hexai-na",
+    "SP_API_CLIENT_ID": "amzn1.application-oa2-client...",
+    "SP_API_CLIENT_SECRET": "...",
+    "SP_API_REFRESH_TOKEN": "...",
+    "SP_API_REGION": "na"
   },
   {
-    "accountName": "hexai-eu",
-    "sellerId": "AMAZON_SELLER_ID_EU",
-    "clientId": "amzn1.application-oa2-client...",
-    "clientSecret": "...",
-    "refreshToken": "...",
-    "region": "eu"
+    "ACCOUNT_NAME": "hexai-eu",
+    "SP_API_CLIENT_ID": "amzn1.application-oa2-client...",
+    "SP_API_CLIENT_SECRET": "...",
+    "SP_API_REFRESH_TOKEN": "...",
+    "SP_API_REGION": "eu"
   }
 ]'
 ```
@@ -119,7 +115,7 @@ At startup the server begins loading each account's marketplace participations f
 {}
 ```
 
-An example response includes `accountName`, `sellerId` when configured, `region`, `metadataStatus`, and marketplace objects containing `marketplaceId`, `storeName`, and participation status.
+An example response includes `accountName`, `region`, `metadataStatus`, and marketplace objects containing `marketplaceId`, `storeName`, and participation status.
 
 If metadata discovery fails, `metadataStatus` is `error` and the server logs the reason without exposing credentials. Marketplace-scoped calls fail closed with `ACCOUNT_METADATA_UNAVAILABLE` until discovery succeeds; operations without a Marketplace argument can still run.
 
@@ -137,7 +133,7 @@ Select an account by its stable name:
 
 When multiple accounts are configured, omitting `accountName` returns `ACCOUNT_NAME_REQUIRED`. With one account it remains optional. The server never guesses an account from a marketplace ID because multiple accounts can participate in the same marketplace.
 
-Before a marketplace-scoped request, the server verifies that every requested marketplace is active for the selected account. It also rejects a mismatched `sellerId` when one is configured. Every step of `run_report` uses the same selected account.
+Before a marketplace-scoped request, the server verifies that every requested marketplace is active for the selected account. Operations that require a Seller/Merchant ID accept `sellerId` in their normal operation arguments. Every step of `run_report` uses the same selected account.
 
 The supported regions are:
 
@@ -160,7 +156,7 @@ Environment values in JSON-based MCP client configuration must escape the accoun
       "command": "node",
       "args": ["/absolute/path/amazon-sp-api-mcp/dist/index.js"],
       "env": {
-        "SP_API_ACCOUNTS": "[{\"accountName\":\"hexai-na\",\"sellerId\":\"SELLER_ID\",\"clientId\":\"...\",\"clientSecret\":\"...\",\"refreshToken\":\"...\",\"region\":\"na\"}]"
+        "SP_API_ACCOUNTS": "[{\"ACCOUNT_NAME\":\"hexai-na\",\"SP_API_CLIENT_ID\":\"...\",\"SP_API_CLIENT_SECRET\":\"...\",\"SP_API_REFRESH_TOKEN\":\"...\",\"SP_API_REGION\":\"na\"}]"
       }
     }
   }
@@ -294,7 +290,7 @@ TLS and internet-facing authorization should be terminated by a trusted reverse 
 
 | Variable                    | Default          | Description                                                           |
 | --------------------------- | ---------------- | --------------------------------------------------------------------- |
-| `SP_API_ACCOUNTS`           | unset            | JSON array of named accounts, credentials, seller IDs, and regions.   |
+| `SP_API_ACCOUNTS`           | unset            | JSON array containing the five supported per-account fields above.    |
 | `SP_API_MAX_RETRIES`        | `5`              | Retry limit for 429 and transient 5xx responses.                      |
 | `SP_API_MAX_CONCURRENCY`    | `4`              | Maximum concurrent outbound SP-API requests.                          |
 | `SP_API_MAX_RESPONSE_BYTES` | `1048576`        | Maximum inline response size before artifact storage.                 |
