@@ -42,7 +42,7 @@ export class LwaTokenProvider implements AccessTokenProvider {
     const { clientId, clientSecret, refreshToken } = this.credentials;
     if (clientId === undefined || clientSecret === undefined || refreshToken === undefined) {
       throw new SpApiMcpError(
-        "Live calls require SP_API_CLIENT_ID, SP_API_CLIENT_SECRET, and SP_API_REFRESH_TOKEN",
+        "The selected SP-API account requires clientId, clientSecret, and refreshToken",
         "CREDENTIALS_MISSING",
       );
     }

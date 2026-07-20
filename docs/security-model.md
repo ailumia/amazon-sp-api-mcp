@@ -6,18 +6,22 @@ The server handles Amazon LWA credentials, seller-authorized SP-API data, remote
 
 ## Credential handling
 
-- Credentials are accepted only through the server environment.
-- Tool schemas do not expose credential or access-token parameters.
+- Credentials are accepted only through the server environment in `SP_API_ACCOUNTS`.
+- Tool schemas expose only a stable account name, never credentials or access-token parameters.
 - Refresh tokens are exchanged directly with Amazon LWA.
-- Access tokens are cached in memory and refreshed before expiry.
+- Access tokens are cached independently per account and refreshed before expiry.
 - Logs contain operation metadata, status, latency, and request IDs, not credentials or request bodies.
-- Use a process-level secret manager in hosted environments; do not commit `.env` files.
+- Use a process-level secret manager in hosted environments. Keep configuration files outside the repository when possible, restrict them to the server user, and never commit `.env` or credential configuration files.
 
 ## Remote actions
 
 HTTP GET and HEAD are classified as `read`. POST, PUT, and PATCH are `write`; DELETE is `delete`. Every non-read invocation requires `confirm=true`. MCP annotations also mark the generic invocation tool as potentially destructive, but authorization must rely on server policy rather than annotations alone.
 
 Confirmation proves explicit caller intent; it is not an authorization system. Amazon application roles and seller authorization remain the authoritative permission boundary.
+
+When multiple accounts are configured, every live call must specify `accountName`. A single account can omit it. There is no mutable "current account" state, so concurrent requests cannot switch each other's account context.
+
+Marketplace metadata is loaded from `getMarketplaceParticipations`. Marketplace-scoped calls are rejected unless every requested marketplace is active for the selected account. When a configured seller ID and request seller ID differ, the call is also rejected. Store names returned by Amazon are display metadata and never routing identifiers.
 
 ## Input and output controls
 
@@ -26,6 +30,8 @@ Confirmation proves explicit caller intent; it is not an authorization system. A
 - Clients cannot set arbitrary headers.
 - Path values are percent-encoded.
 - Concurrency, timeouts, and retries are bounded.
+- Rate-limit buckets are isolated by account name, region, and operation.
+- Write operations can be validated with `dryRun=true` without sending the target operation.
 - Large and binary responses are stored outside model context.
 - Artifact paths are server-generated and cannot be selected by callers.
 - Artifacts are created with owner-only file modes where the operating system supports them.
@@ -40,7 +46,11 @@ The `/health` endpoint reveals only aggregate registry information and the publi
 
 ## Multi-tenancy
 
-The current process represents one configured Amazon authorization context. Do not reuse one process for mutually untrusted tenants. Deploy one isolated process and artifact directory per tenant, or contribute a credential-provider abstraction with explicit tenant authentication and authorization.
+A process can contain multiple Amazon authorization accounts, but all MCP clients authorized to use that process can select any configured account name. Account routing does not provide tenant authorization or artifact isolation. Do not reuse one process for mutually untrusted tenants. Deploy one isolated process and artifact directory per tenant, or add explicit tenant-to-account authorization before sharing a deployment.
+
+## Audit data
+
+Structured audit events are written to stderr for integration with the operator's logging pipeline. Write events contain a SHA-256 hash of the submitted payload and selected resource identifiers, not the raw request body. Results and structured errors include the same audit ID for correlation. Operators that require durable or tamper-resistant audit retention must route stderr to an appropriate external log service.
 
 ## Reporting vulnerabilities
 

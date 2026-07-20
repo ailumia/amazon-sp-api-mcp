@@ -7,6 +7,7 @@ import type { ArtifactReference, JsonObject, JsonValue, OperationDefinition } fr
 
 export interface RunReportArguments {
   reportType: string;
+  accountName?: string;
   marketplaceIds?: string[];
   dataStartTime?: string;
   dataEndTime?: string;
@@ -51,7 +52,10 @@ export class ReportWorkflow {
             : { reportOptions: arguments_.reportOptions }),
         },
       },
-      true,
+      {
+        confirmed: true,
+        ...(arguments_.accountName === undefined ? {} : { accountName: arguments_.accountName }),
+      },
     );
     const reportId = stringAt(createResult.data, ["reportId"]);
     const deadline = Date.now() + (arguments_.timeoutMs ?? 120_000);
@@ -60,7 +64,11 @@ export class ReportWorkflow {
     let processingStatus = "IN_QUEUE";
 
     while (Date.now() < deadline) {
-      const statusResult = await this.executor.invoke(getReport.id, { path: { reportId } });
+      const statusResult = await this.executor.invoke(
+        getReport.id,
+        { path: { reportId } },
+        arguments_.accountName === undefined ? {} : { accountName: arguments_.accountName },
+      );
       processingStatus = stringAt(statusResult.data, ["processingStatus"]);
       if (processingStatus === "DONE") {
         reportDocumentId = stringAt(statusResult.data, ["reportDocumentId"]);
@@ -86,9 +94,13 @@ export class ReportWorkflow {
       );
     }
 
-    const documentResult = await this.executor.invoke(getDocument.id, {
-      path: { reportDocumentId },
-    });
+    const documentResult = await this.executor.invoke(
+      getDocument.id,
+      {
+        path: { reportDocumentId },
+      },
+      arguments_.accountName === undefined ? {} : { accountName: arguments_.accountName },
+    );
     const url = stringAt(documentResult.data, ["url"]);
     const compression = optionalStringAt(documentResult.data, ["compressionAlgorithm"]);
     const download = await this.fetchImplementation(url, { signal: AbortSignal.timeout(60_000) });

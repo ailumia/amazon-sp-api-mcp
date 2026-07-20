@@ -86,6 +86,7 @@ describe("ReportWorkflow", () => {
 
     const result = await workflow.run({
       reportType: "GET_MERCHANT_LISTINGS_ALL_DATA",
+      accountName: "hexai-na",
       marketplaceIds: ["ATVPDKIKX0DER"],
       pollIntervalMs: 1,
       timeoutMs: 1_000,
@@ -100,6 +101,8 @@ describe("ReportWorkflow", () => {
       content: "sku\tquantity\nABC\t2\n",
     });
     expect(invoke).toHaveBeenCalledTimes(4);
+    const calls = invoke.mock.calls as unknown as [string, unknown, { accountName?: string }][];
+    expect(calls.every((call) => call[2].accountName === "hexai-na")).toBe(true);
   });
 
   it("fails fast for terminal report statuses", async () => {

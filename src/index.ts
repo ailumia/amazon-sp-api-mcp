@@ -5,6 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import pino from "pino";
 import type { Request, Response } from "express";
+import { AccountRegistry } from "./accounts/account-registry.js";
 import { ArtifactStore } from "./artifacts/artifact-store.js";
 import { LwaTokenProvider } from "./auth/lwa-token-provider.js";
 import { loadConfig } from "./config.js";
@@ -19,33 +20,51 @@ const logger = pino({ level: config.logLevel }, pino.destination(2));
 const bundle = await loadRegistryBundle();
 const registry = new OperationRegistry(bundle);
 const artifactStore = new ArtifactStore(config.artifactDir);
-const tokenProvider = new LwaTokenProvider({
-  ...(config.clientId === undefined ? {} : { clientId: config.clientId }),
-  ...(config.clientSecret === undefined ? {} : { clientSecret: config.clientSecret }),
-  ...(config.refreshToken === undefined ? {} : { refreshToken: config.refreshToken }),
-  ...(config.accessToken === undefined ? {} : { accessToken: config.accessToken }),
-});
-const executor = new SpApiExecutor(registry, tokenProvider, artifactStore, logger, {
-  endpoint: config.endpoint,
+const userAgent = "ailumia-amazon-sp-api-mcp/1.0.0";
+const accountRegistry = new AccountRegistry(
+  config.accounts.map((account) => ({
+    accountName: account.accountName,
+    ...(account.sellerId === undefined ? {} : { sellerId: account.sellerId }),
+    region: account.region,
+    endpoint: account.endpoint,
+    tokenProvider: new LwaTokenProvider({
+      ...(account.clientId === undefined ? {} : { clientId: account.clientId }),
+      ...(account.clientSecret === undefined ? {} : { clientSecret: account.clientSecret }),
+      ...(account.refreshToken === undefined ? {} : { refreshToken: account.refreshToken }),
+      ...(account.accessToken === undefined ? {} : { accessToken: account.accessToken }),
+    }),
+  })),
+  logger,
+  userAgent,
+  config.requestTimeoutMs,
+);
+const executor = new SpApiExecutor(registry, accountRegistry, artifactStore, logger, {
   maxRetries: config.maxRetries,
   maxResponseBytes: config.maxResponseBytes,
   maxConcurrency: config.maxConcurrency,
   requestTimeoutMs: config.requestTimeoutMs,
-  userAgent: "ailumia-amazon-sp-api-mcp/1.0.0",
+  userAgent,
 });
 const dependencies: ServerDependencies = {
   registry,
+  accountRegistry,
   executor,
   artifactStore,
   reportWorkflow: new ReportWorkflow(registry, executor, artifactStore),
 };
+accountRegistry.warmUp();
 
 const transport = argumentValue("--transport") ?? "stdio";
 if (transport === "stdio") {
   const server = createMcpServer(dependencies);
   await server.connect(new StdioServerTransport());
   logger.info(
-    { operations: bundle.stats.operations, sourceCommit: bundle.source.commit },
+    {
+      operations: bundle.stats.operations,
+      sourceCommit: bundle.source.commit,
+      accounts: accountRegistry.size,
+      defaultAccountName: accountRegistry.defaultAccountName,
+    },
     "MCP server started",
   );
 } else if (transport === "http") {
@@ -93,7 +112,13 @@ function startHttpServer(serverDependencies: ServerDependencies): void {
   );
   app.listen(config.port, config.host, () => {
     logger.info(
-      { host: config.host, port: config.port, operations: bundle.stats.operations },
+      {
+        host: config.host,
+        port: config.port,
+        operations: bundle.stats.operations,
+        accounts: accountRegistry.size,
+        defaultAccountName: accountRegistry.defaultAccountName,
+      },
       "Streamable HTTP MCP server started",
     );
   });
