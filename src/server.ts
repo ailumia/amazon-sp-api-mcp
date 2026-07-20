@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
+import type { AccountRegistry } from "./accounts/account-registry.js";
 import type { ArtifactStore } from "./artifacts/artifact-store.js";
 import { errorPayload } from "./errors.js";
 import type { SpApiExecutor } from "./execution/sp-api-executor.js";
@@ -9,6 +10,7 @@ import type { ReportWorkflow } from "./workflows/report-workflow.js";
 
 export interface ServerDependencies {
   registry: OperationRegistry;
+  accountRegistry: AccountRegistry;
   executor: SpApiExecutor;
   artifactStore: ArtifactStore;
   reportWorkflow: ReportWorkflow;
@@ -18,6 +20,24 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
   const server = new McpServer(
     { name: "amazon-sp-api-mcp", version: "1.0.0" },
     { capabilities: { logging: {} } },
+  );
+
+  server.registerTool(
+    "list_accounts",
+    {
+      title: "List configured Amazon SP-API accounts",
+      description:
+        "List safe account metadata, including account names, regions, and marketplace participations. Credentials are never returned.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async () =>
+      safely(async () => ({ accounts: await dependencies.accountRegistry.listAccounts() })),
   );
 
   server.registerTool(
@@ -103,14 +123,20 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
     {
       title: "Invoke an Amazon SP-API operation",
       description:
-        "Execute an operation from the registry. Write and delete operations require confirm=true. Large responses become artifacts.",
+        "Execute an operation using a stable account name. Multiple-account configurations require accountName. Writes require confirm=true unless dryRun=true.",
       inputSchema: {
         operationId: z.string().min(1),
+        accountName: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Stable configured account name; optional only when one account is configured"),
         path: z.record(z.string(), z.unknown()).optional(),
         query: z.record(z.string(), z.unknown()).optional(),
         headers: z.record(z.string(), z.unknown()).optional(),
         body: z.unknown().optional(),
         confirm: z.boolean().default(false),
+        dryRun: z.boolean().default(false),
       },
       annotations: {
         readOnlyHint: false,
@@ -119,7 +145,7 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
         openWorldHint: true,
       },
     },
-    async ({ operationId, path, query, headers, body, confirm }) =>
+    async ({ operationId, accountName, path, query, headers, body, confirm, dryRun }) =>
       safely(async () =>
         dependencies.executor.invoke(
           operationId,
@@ -129,7 +155,11 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
             ...(headers === undefined ? {} : { headers: headers as never }),
             ...(body === undefined ? {} : { body: body as never }),
           },
-          confirm,
+          {
+            confirmed: confirm,
+            ...(accountName === undefined ? {} : { accountName }),
+            dryRun,
+          },
         ),
       ),
   );
@@ -166,9 +196,14 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
     {
       title: "Run and download an Amazon SP-API report",
       description:
-        "Create a report, poll until completion, download and decompress it, then return an artifact reference.",
+        "Create a report for a stable account name, poll until completion, download and decompress it, then return an artifact reference.",
       inputSchema: {
         reportType: z.string().min(1),
+        accountName: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Stable configured account name; optional only when one account is configured"),
         marketplaceIds: z.array(z.string()).min(1).optional(),
         dataStartTime: z.iso.datetime().optional(),
         dataEndTime: z.iso.datetime().optional(),

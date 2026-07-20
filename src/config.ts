@@ -2,12 +2,7 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 const envSchema = z.object({
-  SP_API_CLIENT_ID: z.string().min(1).optional(),
-  SP_API_CLIENT_SECRET: z.string().min(1).optional(),
-  SP_API_REFRESH_TOKEN: z.string().min(1).optional(),
-  SP_API_ACCESS_TOKEN: z.string().min(1).optional(),
-  SP_API_REGION: z.enum(["na", "eu", "fe"]).default("na"),
-  SP_API_ENDPOINT: z.url().optional(),
+  SP_API_ACCOUNTS: z.string().min(1).optional(),
   SP_API_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(5),
   SP_API_MAX_RESPONSE_BYTES: z.coerce
     .number()
@@ -25,13 +20,76 @@ const envSchema = z.object({
   MCP_BEARER_TOKEN: z.string().min(16).optional(),
 });
 
-export interface AppConfig {
+const accountInputSchema = z
+  .object({
+    accountName: z
+      .string()
+      .regex(/^[a-z0-9][a-z0-9_-]{0,63}$/u)
+      .optional(),
+    sellerId: z.string().min(1).optional(),
+    clientId: z.string().min(1).optional(),
+    clientSecret: z.string().min(1).optional(),
+    refreshToken: z.string().min(1).optional(),
+    accessToken: z.string().min(1).optional(),
+    region: z.enum(["na", "eu", "fe"]).default("na"),
+    endpoint: z.url().optional(),
+  })
+  .strict()
+  .superRefine((account, context) => {
+    if (account.accessToken !== undefined) return;
+    for (const field of ["clientId", "clientSecret", "refreshToken"] as const) {
+      if (account[field] === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: [field],
+          message: `${field} is required when accessToken is not configured`,
+        });
+      }
+    }
+  });
+const accountsInputSchema = z
+  .array(accountInputSchema)
+  .min(1)
+  .superRefine((accounts, context) => {
+    if (accounts.length > 1) {
+      for (const [index, account] of accounts.entries()) {
+        if (account.accountName === undefined) {
+          context.addIssue({
+            code: "custom",
+            path: [index, "accountName"],
+            message: "accountName is required when multiple accounts are configured",
+          });
+        }
+      }
+    }
+    const names = new Set<string>();
+    for (const [index, account] of accounts.entries()) {
+      if (account.accountName === undefined) continue;
+      if (names.has(account.accountName)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "accountName"],
+          message: "accountName must be unique",
+        });
+      }
+      names.add(account.accountName);
+    }
+  });
+type AccountInput = z.infer<typeof accountInputSchema>;
+
+export interface SpApiAccountConfig {
+  accountName: string;
+  sellerId?: string;
   clientId?: string;
   clientSecret?: string;
   refreshToken?: string;
   accessToken?: string;
   region: "na" | "eu" | "fe";
   endpoint: string;
+}
+
+export interface AppConfig {
+  accounts: SpApiAccountConfig[];
   maxRetries: number;
   maxResponseBytes: number;
   maxConcurrency: number;
@@ -53,18 +111,7 @@ const REGION_ENDPOINTS = {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.parse(env);
   return {
-    ...(parsed.SP_API_CLIENT_ID === undefined ? {} : { clientId: parsed.SP_API_CLIENT_ID }),
-    ...(parsed.SP_API_CLIENT_SECRET === undefined
-      ? {}
-      : { clientSecret: parsed.SP_API_CLIENT_SECRET }),
-    ...(parsed.SP_API_REFRESH_TOKEN === undefined
-      ? {}
-      : { refreshToken: parsed.SP_API_REFRESH_TOKEN }),
-    ...(parsed.SP_API_ACCESS_TOKEN === undefined
-      ? {}
-      : { accessToken: parsed.SP_API_ACCESS_TOKEN }),
-    region: parsed.SP_API_REGION,
-    endpoint: (parsed.SP_API_ENDPOINT ?? REGION_ENDPOINTS[parsed.SP_API_REGION]).replace(/\/$/, ""),
+    accounts: parseAccounts(parsed.SP_API_ACCOUNTS),
     maxRetries: parsed.SP_API_MAX_RETRIES,
     maxResponseBytes: parsed.SP_API_MAX_RESPONSE_BYTES,
     maxConcurrency: parsed.SP_API_MAX_CONCURRENCY,
@@ -81,5 +128,33 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
             .filter(Boolean),
         }),
     ...(parsed.MCP_BEARER_TOKEN === undefined ? {} : { bearerToken: parsed.MCP_BEARER_TOKEN }),
+  };
+}
+
+function parseAccounts(value: string | undefined): SpApiAccountConfig[] {
+  if (value === undefined) return [];
+  let json: unknown;
+  try {
+    json = JSON.parse(value);
+  } catch {
+    throw new Error("SP_API_ACCOUNTS must be valid JSON");
+  }
+  const result = accountsInputSchema.safeParse(json);
+  if (!result.success) {
+    throw new Error("SP_API_ACCOUNTS must contain one or more valid account objects");
+  }
+  return result.data.map(resolveAccount);
+}
+
+function resolveAccount(account: AccountInput): SpApiAccountConfig {
+  return {
+    accountName: account.accountName ?? "default",
+    ...(account.sellerId === undefined ? {} : { sellerId: account.sellerId }),
+    ...(account.clientId === undefined ? {} : { clientId: account.clientId }),
+    ...(account.clientSecret === undefined ? {} : { clientSecret: account.clientSecret }),
+    ...(account.refreshToken === undefined ? {} : { refreshToken: account.refreshToken }),
+    ...(account.accessToken === undefined ? {} : { accessToken: account.accessToken }),
+    region: account.region,
+    endpoint: (account.endpoint ?? REGION_ENDPOINTS[account.region]).replace(/\/$/, ""),
   };
 }

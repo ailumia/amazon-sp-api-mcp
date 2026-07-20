@@ -4,13 +4,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-07-17
+## [1.0.0] - 2026-07-20
 
 ### Added
 
 - Version-aware registry generated from all current Amazon SP-API models.
-- Stable discovery, description, invocation, artifact, and Reports workflow tools.
-- LWA authentication, schema validation, write/delete confirmation, bounded concurrency, retries, structured errors, and artifact integrity metadata.
+- Compact discovery, account listing, description, invocation, artifact, and Reports workflow tools.
+- `SP_API_ACCOUNTS` configuration for one or many seller accounts, with stable `accountName` routing, independent refresh-token caches, regional endpoints, and explicit selection for multi-account calls.
+- Safe `list_accounts` metadata discovery through `getMarketplaceParticipations`.
+- Account, seller ID, and marketplace validation before SP-API execution.
+- Per-account, region, and operation rate-limit buckets layered with bounded global concurrency.
+- Write dry runs and structured audit events with request IDs, resource identifiers, and payload hashes.
+- LWA authentication, schema validation, write/delete confirmation, retries, structured errors, and artifact integrity metadata.
 - stdio and stateless Streamable HTTP transports.
 - Full test, CI, CodeQL, dependency update, model sync, and release automation.
 - Open-source governance, contribution, security, architecture, and operational documentation.

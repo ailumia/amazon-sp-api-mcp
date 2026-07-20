@@ -5,6 +5,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ArtifactStore } from "../src/artifacts/artifact-store.js";
+import type { AccountRegistry } from "../src/accounts/account-registry.js";
 import type { SpApiExecutor } from "../src/execution/sp-api-executor.js";
 import { OperationRegistry } from "../src/registry/operation-registry.js";
 import { createMcpServer } from "../src/server.js";
@@ -26,10 +27,26 @@ describe("MCP server", () => {
     const registry = new OperationRegistry(bundle([operation()]));
     const directory = await mkdtemp(resolve(tmpdir(), "server-test-"));
     temporaryDirectories.push(directory);
+    const invoke = vi.fn().mockResolvedValue({
+      operationId: "orders.v0.getOrders",
+      status: 200,
+      data: { payload: {} },
+    });
     const server = createMcpServer({
       registry,
+      accountRegistry: {
+        listAccounts: vi.fn().mockResolvedValue([
+          {
+            accountName: "hexai-eu",
+            isDefault: true,
+            region: "eu",
+            metadataStatus: "ready",
+            marketplaces: [],
+          },
+        ]),
+      } as unknown as AccountRegistry,
       artifactStore: new ArtifactStore(directory),
-      executor: { invoke: vi.fn() } as unknown as SpApiExecutor,
+      executor: { invoke } as unknown as SpApiExecutor,
       reportWorkflow: { run: vi.fn() } as unknown as ReportWorkflow,
     });
     const client = new Client({ name: "test-client", version: "1.0.0" });
@@ -40,6 +57,7 @@ describe("MCP server", () => {
 
     const tools = await client.listTools();
     expect(tools.tools.map(({ name }) => name)).toEqual([
+      "list_accounts",
       "discover_operations",
       "describe_operation",
       "invoke_operation",
@@ -55,6 +73,25 @@ describe("MCP server", () => {
       registry: { operations: 1 },
       operations: [{ id: "orders.v0.getOrders" }],
     });
+
+    const accounts = await client.callTool({ name: "list_accounts", arguments: {} });
+    expect(accounts.structuredContent).toMatchObject({
+      accounts: [{ accountName: "hexai-eu", region: "eu" }],
+    });
+
+    await client.callTool({
+      name: "invoke_operation",
+      arguments: { operationId: "orders.v0.getOrders", accountName: "hexai-eu" },
+    });
+    expect(invoke).toHaveBeenCalledWith(
+      "orders.v0.getOrders",
+      {},
+      {
+        accountName: "hexai-eu",
+        confirmed: false,
+        dryRun: false,
+      },
+    );
   });
 
   it("returns structured tool errors", async () => {
@@ -63,6 +100,7 @@ describe("MCP server", () => {
     temporaryDirectories.push(directory);
     const server = createMcpServer({
       registry,
+      accountRegistry: { listAccounts: vi.fn() } as unknown as AccountRegistry,
       artifactStore: new ArtifactStore(directory),
       executor: { invoke: vi.fn() } as unknown as SpApiExecutor,
       reportWorkflow: { run: vi.fn() } as unknown as ReportWorkflow,

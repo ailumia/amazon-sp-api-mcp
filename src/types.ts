@@ -77,6 +77,9 @@ export interface InvocationArguments {
 
 export interface InvocationResult {
   operationId: string;
+  accountName?: string;
+  auditId?: string;
+  dryRun?: boolean;
   status: number;
   requestId?: string;
   rateLimit?: string;
