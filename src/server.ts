@@ -16,6 +16,25 @@ export interface ServerDependencies {
   reportWorkflow: ReportWorkflow;
 }
 
+/**
+ * Some MCP clients serialize the `body` argument as a JSON string when the tool schema
+ * does not pin a concrete type. Accept that and parse it so the registry validator sees
+ * the intended object. Non-JSON strings are passed through unchanged.
+ */
+function parseBodyArgument(body: unknown): unknown {
+  if (typeof body !== "string") return body;
+  const trimmed = body.trim();
+  if (trimmed.length === 0) return undefined;
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      return JSON.parse(trimmed) as unknown;
+    } catch {
+      return body;
+    }
+  }
+  return body;
+}
+
 export function createMcpServer(dependencies: ServerDependencies): McpServer {
   const server = new McpServer(
     { name: "amazon-sp-api-mcp", version: "1.0.0" },
@@ -134,7 +153,12 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
         path: z.record(z.string(), z.unknown()).optional(),
         query: z.record(z.string(), z.unknown()).optional(),
         headers: z.record(z.string(), z.unknown()).optional(),
-        body: z.unknown().optional(),
+        body: z
+          .union([z.record(z.string(), z.unknown()), z.array(z.unknown()), z.string()])
+          .optional()
+          .describe(
+            "Request body as a JSON object (or array). A JSON-encoded string is also accepted and parsed server-side.",
+          ),
         confirm: z.boolean().default(false),
         dryRun: z.boolean().default(false),
       },
@@ -145,9 +169,10 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
         openWorldHint: true,
       },
     },
-    async ({ operationId, accountName, path, query, headers, body, confirm, dryRun }) =>
-      safely(async () =>
-        dependencies.executor.invoke(
+    async ({ operationId, accountName, path, query, headers, body: rawBody, confirm, dryRun }) =>
+      safely(async () => {
+        const body = parseBodyArgument(rawBody);
+        return dependencies.executor.invoke(
           operationId,
           {
             ...(path === undefined ? {} : { path: path as never }),
@@ -160,8 +185,8 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
             ...(accountName === undefined ? {} : { accountName }),
             dryRun,
           },
-        ),
-      ),
+        );
+      }),
   );
 
   server.registerTool(

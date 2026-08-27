@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- `invoke_operation` now declares `body` as an object, array, or JSON-encoded string and parses string bodies server-side. Previously the `body` schema had no concrete type, so some MCP clients serialized it as a string and every operation with a request body failed with `INVALID_ARGUMENTS: /body must be object`.
+
 ### Changed
 
 - Simplified each `SP_API_ACCOUNTS` entry to `ACCOUNT_NAME`, `SP_API_CLIENT_ID`, `SP_API_CLIENT_SECRET`, `SP_API_REFRESH_TOKEN`, and `SP_API_REGION`; seller IDs remain operation arguments where required.

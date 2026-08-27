@@ -94,6 +94,66 @@ describe("MCP server", () => {
     );
   });
 
+  it("accepts invoke_operation body as an object or as a JSON-encoded string", async () => {
+    const registry = new OperationRegistry(bundle([operation()]));
+    const directory = await mkdtemp(resolve(tmpdir(), "server-test-"));
+    temporaryDirectories.push(directory);
+    const invoke = vi.fn().mockResolvedValue({
+      operationId: "orders.v0.getOrders",
+      status: 200,
+      data: { payload: {} },
+    });
+    const server = createMcpServer({
+      registry,
+      accountRegistry: { listAccounts: vi.fn() } as unknown as AccountRegistry,
+      artifactStore: new ArtifactStore(directory),
+      executor: { invoke } as unknown as SpApiExecutor,
+      reportWorkflow: { run: vi.fn() } as unknown as ReportWorkflow,
+    });
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    closeables.push(client, server);
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    const tools = await client.listTools();
+    const invokeTool = tools.tools.find(({ name }) => name === "invoke_operation");
+    const bodySchema = (invokeTool?.inputSchema.properties as Record<string, unknown>).body;
+    expect(JSON.stringify(bodySchema)).toContain('"type":"object"');
+
+    const payload = { FeesEstimateRequest: { MarketplaceId: "A1PA6795UKMFR9" } };
+
+    await client.callTool({
+      name: "invoke_operation",
+      arguments: { operationId: "orders.v0.getOrders", body: payload },
+    });
+    expect(invoke).toHaveBeenLastCalledWith(
+      "orders.v0.getOrders",
+      { body: payload },
+      expect.objectContaining({ confirmed: false, dryRun: false }),
+    );
+
+    await client.callTool({
+      name: "invoke_operation",
+      arguments: { operationId: "orders.v0.getOrders", body: JSON.stringify(payload) },
+    });
+    expect(invoke).toHaveBeenLastCalledWith(
+      "orders.v0.getOrders",
+      { body: payload },
+      expect.objectContaining({ confirmed: false, dryRun: false }),
+    );
+
+    await client.callTool({
+      name: "invoke_operation",
+      arguments: { operationId: "orders.v0.getOrders", body: "raw-text" },
+    });
+    expect(invoke).toHaveBeenLastCalledWith(
+      "orders.v0.getOrders",
+      { body: "raw-text" },
+      expect.objectContaining({ confirmed: false, dryRun: false }),
+    );
+  });
+
   it("returns structured tool errors", async () => {
     const registry = new OperationRegistry(bundle([operation()]));
     const directory = await mkdtemp(resolve(tmpdir(), "server-test-"));
