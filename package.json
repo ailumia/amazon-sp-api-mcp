@@ -58,7 +58,7 @@
     "provenance": true
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "pino": "^10.3.1",
@@ -68,12 +68,12 @@
     "@eslint/js": "^9.39.1",
     "@types/express": "^5.0.6",
     "@types/node": "^20.19.1",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.12",
     "eslint": "^9.39.1",
     "prettier": "^3.7.4",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.48.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.12"
   }
 }
