@@ -19,12 +19,11 @@ export interface ServerDependencies {
 /**
  * Some MCP clients serialize the `body` argument as a JSON string when the tool schema
  * does not pin a concrete type. Accept that and parse it so the registry validator sees
- * the intended object. Non-JSON strings are passed through unchanged.
+ * the intended object or array. All other strings are passed through unchanged.
  */
 function parseBodyArgument(body: unknown): unknown {
   if (typeof body !== "string") return body;
   const trimmed = body.trim();
-  if (trimmed.length === 0) return undefined;
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
       return JSON.parse(trimmed) as unknown;
@@ -154,10 +153,17 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
         query: z.record(z.string(), z.unknown()).optional(),
         headers: z.record(z.string(), z.unknown()).optional(),
         body: z
-          .union([z.record(z.string(), z.unknown()), z.array(z.unknown()), z.string()])
+          .union([
+            z.record(z.string(), z.unknown()),
+            z.array(z.unknown()),
+            z.string(),
+            z.number(),
+            z.boolean(),
+            z.null(),
+          ])
           .optional()
           .describe(
-            "Request body as a JSON object (or array). A JSON-encoded string is also accepted and parsed server-side.",
+            "Request body as any JSON value. Strings encoding JSON objects or arrays are parsed server-side; all other strings pass through unchanged.",
           ),
         confirm: z.boolean().default(false),
         dryRun: z.boolean().default(false),

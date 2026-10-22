@@ -226,7 +226,7 @@ POST, PUT, and PATCH operations require `confirm=true`. DELETE operations receiv
 }
 ```
 
-`body` is the JSON request body as an object (or array). A JSON-encoded string is also accepted and parsed server-side, so clients that serialize nested arguments as strings still work.
+`body` accepts any JSON value (object, array, string, number, boolean, or `null`) and can be omitted. Strings encoding JSON objects or arrays are parsed server-side, so clients that serialize nested arguments as strings still work. All other strings, including empty, whitespace-only, and malformed JSON strings, pass through unchanged. The resulting value must still satisfy the operation's request schema.
 
 Preview the validated regional request without sending the SP-API operation by using `dryRun=true`; confirmation is not required for a dry run:
 

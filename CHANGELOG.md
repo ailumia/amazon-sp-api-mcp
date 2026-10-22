@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-- `invoke_operation` now declares `body` as an object, array, or JSON-encoded string and parses string bodies server-side. Previously the `body` schema had no concrete type, so some MCP clients serialized it as a string and every operation with a request body failed with `INVALID_ARGUMENTS: /body must be object`.
+- `invoke_operation` now declares concrete `body` types for all JSON values and parses strings encoding JSON objects or arrays server-side. Previously the `body` schema had no concrete type, so some MCP clients serialized it as a string and operations with object request bodies failed with `INVALID_ARGUMENTS: /body must be object`. Numbers, booleans, `null`, and omitted bodies remain accepted by the tool schema; all other strings, including empty and whitespace-only values, pass through unchanged.
 
 ### Changed
 
